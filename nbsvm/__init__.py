@@ -11,22 +11,25 @@ __all__ = ['NBSVM']
 
 class NBSVM(BaseEstimator, LinearClassifierMixin, SparseCoefMixin):
 
-    def __init__(self, alpha=1, C=1, beta=0.25):
+    def __init__(self, alpha=1, C=1, beta=0.25, fit_intercept=False):
         self.alpha = alpha
         self.C = C
         self.beta = beta
+        self.fit_intercept = fit_intercept
 
     def fit(self, X, y):
         self.classes_ = np.unique(y)
         if len(self.classes_) == 2:
-            self.coef_ = self._fit_binary(X, y)
-            self.intercept_ = 0
+            coef_, intercept_ = self._fit_binary(X, y)
+            self.coef_ = coef_
+            self.intercept_ = intercept_
         else:
-            self.coef_ = np.concatenate([
+            coef_, intercept_ = zip(*[
                 self._fit_binary(X, y == class_)
                 for class_ in self.classes_
             ])
-            self.intercept_ = np.zeros(len(self.coef_))
+            self.coef_ = np.concatenate(coef_)
+            self.intercept_ = np.array(intercept_)
         return self
 
     def _fit_binary(self, X, y):
@@ -46,11 +49,15 @@ class NBSVM(BaseEstimator, LinearClassifierMixin, SparseCoefMixin):
 
         lsvc = LinearSVC(
             C=self.C,
-            fit_intercept=False,
+            fit_intercept=self.fit_intercept,
             max_iter=10000
         ).fit(X_scaled, y)
 
-        return r * (
+        coef_ = r * (
             (1 - self.beta) * np.abs(lsvc.coef_).mean() +
             self.beta * lsvc.coef_
         )
+
+        intercept_ = self.beta * lsvc.intercept_
+
+        return coef_, intercept_
