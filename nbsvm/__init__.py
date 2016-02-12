@@ -29,13 +29,14 @@ class NBSVM(BaseEstimator, LinearClassifierMixin, SparseCoefMixin):
                 for class_ in self.classes_
             ])
             self.coef_ = np.concatenate(coef_)
-            self.intercept_ = np.array(intercept_)
+            self.intercept_ = np.array(intercept_).flatten()
         return self
 
     def _fit_binary(self, X, y):
-        p = np.asarray(self.alpha + X[y == 1].sum(axis=0))[0]
-        q = np.asarray(self.alpha + X[y == 0].sum(axis=0))[0]
+        p = np.asarray(self.alpha + X[y == 1].sum(axis=0)).flatten()
+        q = np.asarray(self.alpha + X[y == 0].sum(axis=0)).flatten()
         r = np.log(p/np.abs(p).sum()) - np.log(q/np.abs(q).sum())
+        b = np.log((y == 1).sum()) - np.log((y == 0).sum())
 
         if isinstance(X, spmatrix):
             indices = np.arange(len(r))
@@ -53,11 +54,12 @@ class NBSVM(BaseEstimator, LinearClassifierMixin, SparseCoefMixin):
             max_iter=10000
         ).fit(X_scaled, y)
 
-        coef_ = r * (
-            (1 - self.beta) * np.abs(lsvc.coef_).mean() +
-            self.beta * lsvc.coef_
-        )
+        mean_mag =  np.abs(lsvc.coef_).mean()
 
-        intercept_ = self.beta * lsvc.intercept_
+        coef_ = (1 - self.beta) * mean_mag * r + \
+                self.beta * (r * lsvc.coef_)
+
+        intercept_ = (1 - self.beta) * mean_mag * b + \
+                     self.beta * lsvc.intercept_
 
         return coef_, intercept_
