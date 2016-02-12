@@ -1,5 +1,6 @@
 import glob
 import os
+import string
 
 import numpy as np
 
@@ -13,10 +14,15 @@ def load_imdb():
     train_pos = glob.glob(os.path.join('aclImdb', 'train', 'pos', '*.txt'))
     train_neg = glob.glob(os.path.join('aclImdb', 'train', 'neg', '*.txt'))
 
-    vectorizer = CountVectorizer('filename', ngram_range=(1, 3), binary=True)
+    token_pattern = r'\w+|[%s]' % string.punctuation
+
+    vectorizer = CountVectorizer('filename', ngram_range=(1, 3),
+                                 token_pattern=token_pattern,
+                                 binary=True)
     X_train = vectorizer.fit_transform(train_pos+train_neg)
     y_train = np.array([1]*len(train_pos)+[0]*len(train_neg))
 
+    print("Vocabulary Size: %s" % len(vectorizer.vocabulary_))
     print("Vectorizing Testing Text")
 
     test_pos = glob.glob(os.path.join('aclImdb', 'test', 'pos', '*.txt'))
